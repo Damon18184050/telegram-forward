@@ -1,22 +1,44 @@
-from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
+import time
+import requests
 
 TOKEN = "你的TOKEN"
-SOURCE_CHAT_ID = -100xxxxxxxxxx
-TARGET_CHAT_ID = -100xxxxxxxxxx
+SOURCE_CHAT_ID = -1003983646730
+TARGET_CHAT_ID = -1001174798090
 
+BASE_URL = f"https://api.telegram.org/bot{TOKEN}"
+offset = None
 
-async def forward(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.channel_post and update.channel_post.chat.id == SOURCE_CHAT_ID:
-        await context.bot.copy_message(
-            chat_id=TARGET_CHAT_ID,
-            from_chat_id=SOURCE_CHAT_ID,
-            message_id=update.channel_post.message_id
-        )
+while True:
+    try:
+        params = {"timeout": 30}
+        if offset:
+            params["offset"] = offset
 
+        r = requests.get(f"{BASE_URL}/getUpdates", params=params, timeout=40)
+        data = r.json()
 
-app = ApplicationBuilder().token(TOKEN).build()
+        for update in data.get("result", []):
+            offset = update["update_id"] + 1
 
-app.add_handler(MessageHandler(filters.ALL, forward))
+            post = update.get("channel_post")
+            if not post:
+                continue
 
-app.run_polling()
+            chat_id = post["chat"]["id"]
+            message_id = post["message_id"]
+
+            if chat_id == SOURCE_CHAT_ID:
+                requests.post(
+                    f"{BASE_URL}/copyMessage",
+                    json={
+                        "chat_id": TARGET_CHAT_ID,
+                        "from_chat_id": SOURCE_CHAT_ID,
+                        "message_id": message_id
+                    },
+                    timeout=20
+                )
+
+    except Exception as e:
+        print("ERROR:", e)
+
+    time.sleep(1)
