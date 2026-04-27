@@ -5,8 +5,8 @@ TOKEN = "8604959641:AAE-x8_OddNsZcv6Dumv251TLlcSyNomCJU"
 SOURCE_CHAT_ID = -1003983646730
 TARGET_CHAT_ID = -1001174798090
 
-# 
-FOOTER = "\n\n📩 下单飞机：@huangdaozhu（3分钟没回复弹语音或者打下面电话）\n📞 性福热线：09516865555"
+# 👇 追加内容
+FOOTER = "\n\n下单飞机：@huangdaozhu（3分钟没回复弹语音或者打下面电话）\n性福热线：09516865555"
 
 BASE_URL = f"https://api.telegram.org/bot{TOKEN}"
 offset = None
@@ -100,7 +100,6 @@ while True:
             # 👉 单条消息处理
             # =========================
             else:
-                # 有文字（caption 或 text）
                 text = None
 
                 if "caption" in post:
@@ -108,6 +107,7 @@ while True:
                 elif "text" in post:
                     text = post["text"]
 
+                # 👉 有文字 → 自己发送（加客服信息）
                 if text:
                     text = text + FOOTER
 
@@ -120,7 +120,7 @@ while True:
                         timeout=20
                     )
                 else:
-                    # 没文字就直接复制
+                    # 👉 没文字 → 原样复制
                     res = requests.post(
                         f"{BASE_URL}/copyMessage",
                         json={
@@ -133,9 +133,7 @@ while True:
 
                 print("单条转发结果:", res.text)
 
-        # =========================
         # 👉 相册延迟发送（合并）
-        # =========================
         for group_id in list(media_groups.keys()):
             first_time = media_groups[group_id][0]["time"]
             if now - first_time >= 2:
