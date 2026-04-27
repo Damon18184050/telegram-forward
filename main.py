@@ -1,9 +1,12 @@
 import time
 import requests
 
-TOKEN = "8604959641:AAFLVWtV9BdB4Qhreu5pqEOMgaWvyV41T2E"
+TOKEN = "8604959641:AAE-x8_OddNsZcv6Dumv251TLlcSyNomCJU"
 SOURCE_CHAT_ID = -1003983646730
 TARGET_CHAT_ID = -1001174798090
+
+# 
+FOOTER = "\n\n📩 下单飞机：@huangdaozhu（3分钟没回复弹语音或者打下面电话）\n📞 性福热线：09516865555"
 
 BASE_URL = f"https://api.telegram.org/bot{TOKEN}"
 offset = None
@@ -35,8 +38,9 @@ def send_media_group(group_id):
         else:
             continue
 
-        if "caption" in post:
-            media_item["caption"] = post["caption"]
+        # 👉 只在第一条加文字（避免重复）
+        if "caption" in post and len(media) == 0:
+            media_item["caption"] = post["caption"] + FOOTER
 
         media.append(media_item)
 
@@ -78,6 +82,9 @@ while True:
 
             group_id = post.get("media_group_id")
 
+            # =========================
+            # 👉 相册处理
+            # =========================
             if group_id:
                 if group_id not in media_groups:
                     media_groups[group_id] = []
@@ -89,19 +96,46 @@ while True:
 
                 print("收到相册消息:", group_id, message_id)
 
+            # =========================
+            # 👉 单条消息处理
+            # =========================
             else:
-                res = requests.post(
-                    f"{BASE_URL}/copyMessage",
-                    json={
-                        "chat_id": TARGET_CHAT_ID,
-                        "from_chat_id": SOURCE_CHAT_ID,
-                        "message_id": message_id
-                    },
-                    timeout=20
-                )
+                # 有文字（caption 或 text）
+                text = None
+
+                if "caption" in post:
+                    text = post["caption"]
+                elif "text" in post:
+                    text = post["text"]
+
+                if text:
+                    text = text + FOOTER
+
+                    res = requests.post(
+                        f"{BASE_URL}/sendMessage",
+                        json={
+                            "chat_id": TARGET_CHAT_ID,
+                            "text": text
+                        },
+                        timeout=20
+                    )
+                else:
+                    # 没文字就直接复制
+                    res = requests.post(
+                        f"{BASE_URL}/copyMessage",
+                        json={
+                            "chat_id": TARGET_CHAT_ID,
+                            "from_chat_id": SOURCE_CHAT_ID,
+                            "message_id": message_id
+                        },
+                        timeout=20
+                    )
+
                 print("单条转发结果:", res.text)
 
-        # 等2秒收齐同一组相册再发
+        # =========================
+        # 👉 相册延迟发送（合并）
+        # =========================
         for group_id in list(media_groups.keys()):
             first_time = media_groups[group_id][0]["time"]
             if now - first_time >= 2:
